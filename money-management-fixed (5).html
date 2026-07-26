@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dompetku — Money Management</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F8FB; --surface:#FFFFFF; --surface-2:#F0F2F7; --border:#E4E8F0;
+    --text:#151B2E; --text-muted:#69708A; --text-faint:#9AA1B9;
+    --accent:#0E9F8A; --accent-soft:#0E9F8A1A;
+    --income:#149E6C; --income-soft:#149E6C15;
+    --expense:#E0553F; --expense-soft:#E0553F15;
+    --warn:#D6942C; --warn-soft:#D6942C1A;
+    --ring:#0E9F8A55;
+  }
+  .dark{
+    --bg:#0A0F1E; --surface:#111832; --surface-2:#161F3E; --border:#232D52;
+    --text:#EAEDFB; --text-muted:#8B93B8; --text-faint:#5C6490;
+    --accent:#2DD9BE; --accent-soft:#2DD9BE1F;
+    --income:#3FDB93; --income-soft:#3FDB9318;
+    --expense:#FF6E5A; --expense-soft:#FF6E5A1A;
+    --warn:#F0B84E; --warn-soft:#F0B84E1F;
+    --ring:#2DD9BE55;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif;
+    transition:background .3s ease, color .3s ease;
+  }
+  .font-display{font-family:'Sora',sans-serif;}
+  .font-mono{font-family:'JetBrains Mono',monospace;}
+  .surface{background:var(--surface); border:1px solid var(--border);}
+  .surface-2{background:var(--surface-2);}
+  .text-muted{color:var(--text-muted);}
+  .text-faint{color:var(--text-faint);}
+  .border-c{border-color:var(--border);}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  input, select{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    transition:border-color .2s, box-shadow .2s;
+  }
+  input:focus, select:focus{
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring);
+  }
+  .btn-primary{
+    background:var(--accent); color:#06231D;
+  }
+  .dark .btn-primary{ color:#04140F; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  .btn-ghost:hover{ background:var(--border); }
+  .pill{ border-radius:9999px; }
+  .progress-track{ background:var(--surface-2); border-radius:9999px; overflow:hidden; height:8px; }
+  .progress-fill{ height:100%; border-radius:9999px; transition:width .5s ease; }
+  .row-hover:hover{ background:var(--surface-2); }
+  .nav-item{ color:var(--text-muted); }
+  .nav-item.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .nav-item:hover:not(.active){ background:var(--surface-2); color:var(--text); }
+  .card-glow{
+    position:relative; overflow:hidden;
+  }
+  .card-glow::after{
+    content:''; position:absolute; top:-40%; right:-20%; width:160px; height:160px;
+    background:radial-gradient(circle, var(--accent-soft), transparent 70%);
+    pointer-events:none;
+  }
+  .fade-in{ animation:fadeIn .35s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .toast{ animation:slideUp .3s ease; }
+  @keyframes slideUp{ from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);} }
+  .modal-backdrop{ backdrop-filter:blur(4px); background:rgba(5,8,20,0.55); }
+  input[type="date"]::-webkit-calendar-picker-indicator{ filter:var(--date-filter,none); cursor:pointer; }
+  .dark input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); }
+  .table-scroll{ max-height:520px; overflow-y:auto; }
+  .skeleton-empty{
+    border:1.5px dashed var(--border);
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div id="app" class="flex min-h-screen">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden md:flex w-64 flex-shrink-0 surface border-r border-c flex-col py-6 px-4 sticky top-0 h-screen">
+    <div class="flex items-center gap-2.5 px-2 mb-8">
+      <div class="w-9 h-9 rounded-xl grid place-items-center" style="background:var(--accent-soft)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2"><path d="M2 8h20M2 8v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8M2 8l3-5h14l3 5"/><circle cx="16" cy="14" r="1.6" fill="var(--accent)" stroke="none"/></svg>
+      </div>
+      <span class="font-display font-bold text-lg">Dompetku</span>
+    </div>
+
+    <nav class="flex flex-col gap-1 text-sm">
+      <button data-view="dashboard" class="nav-btn active nav-item flex items-center gap-3 px-3 py-2 rounded-xl transition">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Dashboard
+      </button>
+      <button data-view="transaksi" class="nav-btn nav-item flex items-center gap-3 px-3 py-2 rounded-xl transition">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3" cy="6" r="1.5"/><circle cx="3" cy="12" r="1.5"/><circle cx="3" cy="18" r="1.5"/></svg>
+        Transaksi
+      </button>
+      <button data-view="budget" class="nav-btn nav-item flex items-center gap-3 px-3 py-2 rounded-xl transition">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>
+        Anggaran
+      </button>
+      <button data-view="rencana" class="nav-btn nav-item flex items-center gap-3 px-3 py-2 rounded-xl transition">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M8 14l2 2 4-4"/></svg>
+        Rencana
+      </button>
+      <button data-view="laporan" class="nav-btn nav-item flex items-center gap-3 px-3 py-2 rounded-xl transition">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>
+        Laporan
+      </button>
+    </nav>
+
+    <div class="mt-auto flex flex-col gap-2">
+      <button id="themeToggleDesktop" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition">
+        <svg id="themeIconDesktop" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <span id="themeLabelDesktop">Mode Gelap</span>
+      </button>
+      <div class="flex gap-2">
+        <button id="exportBtnDesktop" class="btn-ghost flex-1 px-3 py-2 rounded-xl text-xs font-medium">Ekspor</button>
+        <label class="btn-ghost flex-1 px-3 py-2 rounded-xl text-xs font-medium text-center cursor-pointer">
+          Impor
+          <input type="file" id="importInputDesktop" accept=".json" class="hidden">
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 min-w-0 pb-24 md:pb-6">
+    <!-- Topbar -->
+    <header class="surface border-b border-c px-4 md:px-8 py-2.5 md:py-4 sticky top-0 z-20">
+      <div class="flex items-center gap-2 md:gap-3">
+        <div class="md:hidden flex items-center gap-2 flex-shrink-0">
+          <div class="w-8 h-8 rounded-lg grid place-items-center" style="background:var(--accent-soft)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2"><path d="M2 8h20M2 8v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8M2 8l3-5h14l3 5"/></svg>
+          </div>
+          <span class="font-display font-bold text-base">Dompetku</span>
+        </div>
+        <div class="hidden md:block relative flex-1 max-w-sm">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-faint" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="searchInputDesktop" type="text" placeholder="Cari transaksi..." class="w-full pl-9 pr-3 py-2 rounded-xl text-sm">
+        </div>
+        <select id="monthFilter" class="hidden md:block rounded-xl px-3 py-2 text-sm font-medium flex-shrink-0"></select>
+        <div class="flex-1 md:hidden"></div>
+        <button id="themeToggleMobile" class="md:hidden btn-ghost w-9 h-9 rounded-xl grid place-items-center flex-shrink-0">
+          <svg id="themeIconMobile" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button id="addTxBtn" class="btn-primary rounded-xl px-3.5 md:px-4 py-2 text-sm font-semibold flex items-center gap-1.5 flex-shrink-0">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="hidden sm:inline">Tambah</span>
+        </button>
+      </div>
+      <div class="flex md:hidden items-center gap-2 mt-2.5">
+        <div class="relative flex-1">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-faint" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="searchInputMobile" type="text" placeholder="Cari transaksi..." class="w-full pl-9 pr-3 py-2 rounded-xl text-sm">
+        </div>
+        <select id="monthFilterMobile" class="rounded-xl px-2.5 py-2 text-xs font-medium flex-shrink-0 max-w-[38%]"></select>
+      </div>
+    </header>
+
+    <div class="px-4 md:px-8 py-6 max-w-6xl mx-auto">
+
+      <!-- DASHBOARD VIEW -->
+      <section id="view-dashboard" class="fade-in">
+        <div class="mb-5">
+          <p class="text-muted text-sm font-medium">Ringkasan</p>
+          <h1 class="font-display font-bold text-2xl md:text-3xl mt-0.5" id="periodLabel">Bulan Ini</h1>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <div class="surface card-glow rounded-2xl p-4">
+            <p class="text-muted text-xs font-medium uppercase tracking-wide">Saldo Berjalan</p>
+            <p id="statBalance" class="font-mono font-bold text-lg md:text-2xl mt-2 truncate">Rp 0</p>
+            <p class="text-xs text-faint mt-1">Total keseluruhan</p>
+          </div>
+          <div class="surface rounded-2xl p-4">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg grid place-items-center" style="background:var(--income-soft)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--income)" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </div>
+              <p class="text-muted text-xs font-medium uppercase tracking-wide">Pemasukan</p>
+            </div>
+            <p id="statIncome" class="font-mono font-bold text-lg md:text-2xl mt-2 truncate" style="color:var(--income)">Rp 0</p>
+            <p class="text-xs text-faint mt-1" id="statIncomeCount">0 transaksi bulan ini</p>
+          </div>
+          <div class="surface rounded-2xl p-4">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg grid place-items-center" style="background:var(--expense-soft)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--expense)" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              </div>
+              <p class="text-muted text-xs font-medium uppercase tracking-wide">Pengeluaran</p>
+            </div>
+            <p id="statExpense" class="font-mono font-bold text-lg md:text-2xl mt-2 truncate" style="color:var(--expense)">Rp 0</p>
+            <p class="text-xs text-faint mt-1" id="statExpenseCount">0 transaksi bulan ini</p>
+          </div>
+          <div class="surface rounded-2xl p-4">
+            <p class="text-muted text-xs font-medium uppercase tracking-wide">Selisih Bulan Ini</p>
+            <p id="statNet" class="font-mono font-bold text-lg md:text-2xl mt-2 truncate">Rp 0</p>
+            <p class="text-xs text-faint mt-1" id="statNetLabel">Pemasukan − Pengeluaran</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-5">
+          <div class="surface rounded-2xl p-4 lg:col-span-3">
+            <div class="flex items-center justify-between mb-3">
+              <p class="font-display font-semibold text-sm">Tren Kas per Bulan</p>
+            </div>
+            <div class="h-64"><canvas id="lineChart"></canvas></div>
+          </div>
+          <div class="surface rounded-2xl p-4 lg:col-span-2">
+            <div class="flex items-center justify-between mb-3">
+              <p class="font-display font-semibold text-sm">Pengeluaran per Kategori</p>
+            </div>
+            <div class="h-64 grid place-items-center"><canvas id="pieChart"></canvas></div>
+            <p id="pieEmpty" class="text-center text-xs text-faint hidden py-8">Belum ada data pengeluaran bulan ini</p>
+          </div>
+        </div>
+
+        <div class="surface rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="font-display font-semibold text-sm">Transaksi Terbaru</p>
+            <button class="nav-btn text-xs font-medium" data-view="transaksi" style="color:var(--accent)">Lihat semua →</button>
+          </div>
+          <div id="recentList" class="divide-y divide-c"></div>
+          <p id="recentEmpty" class="skeleton-empty rounded-xl py-8 text-center text-sm text-faint hidden">Belum ada transaksi. Klik "Tambah" untuk mulai mencatat.</p>
+        </div>
+      </section>
+
+      <!-- TRANSAKSI VIEW -->
+      <section id="view-transaksi" class="fade-in hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h1 class="font-display font-bold text-2xl md:text-3xl">Riwayat Transaksi</h1>
+        </div>
+        <div class="surface rounded-2xl overflow-hidden">
+          <div class="table-scroll overflow-x-auto">
+            <table class="w-full text-sm min-w-[640px]">
+              <thead class="surface-2 text-xs uppercase text-muted sticky top-0">
+                <tr>
+                  <th class="text-left font-medium px-4 py-2.5">Tanggal</th>
+                  <th class="text-left font-medium px-4 py-2.5">Kategori</th>
+                  <th class="text-left font-medium px-4 py-2.5">Deskripsi</th>
+                  <th class="text-right font-medium px-4 py-2.5">Pemasukan</th>
+                  <th class="text-right font-medium px-4 py-2.5">Pengeluaran</th>
+                  <th class="text-center font-medium px-4 py-2.5">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody" class="divide-y divide-c"></tbody>
+            </table>
+          </div>
+          <p id="txEmpty" class="text-center text-sm text-faint py-12 hidden">Tidak ada transaksi yang cocok.</p>
+        </div>
+      </section>
+
+      <!-- BUDGET VIEW -->
+      <section id="view-budget" class="fade-in hidden">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+          <h1 class="font-display font-bold text-2xl md:text-3xl">Anggaran Bulanan</h1>
+          <button id="addBudgetBtn" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Atur Anggaran
+          </button>
+        </div>
+        <div id="budgetGrid" class="grid grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <p id="budgetEmpty" class="skeleton-empty rounded-2xl py-14 text-center text-sm text-faint hidden">Belum ada anggaran diatur untuk bulan ini.</p>
+      </section>
+
+      <!-- RENCANA VIEW -->
+      <section id="view-rencana" class="fade-in hidden">
+        <div class="flex items-center justify-between mb-1 flex-wrap gap-3">
+          <div>
+            <h1 class="font-display font-bold text-2xl md:text-3xl">Rencana Keuangan</h1>
+            <p class="text-muted text-sm mt-0.5">Susun rencana arus kas untuk <span id="rencanaMonthLabel" class="font-medium"></span>, lalu bandingkan dengan kenyataannya.</p>
+          </div>
+          <button id="addPlanBtn" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Tambah Rencana
+          </button>
+        </div>
+
+        <!-- Summary: Rencana vs Realisasi -->
+        <div class="grid grid-cols-2 gap-3 my-5">
+          <div class="surface rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-7 h-7 rounded-lg grid place-items-center" style="background:var(--income-soft)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--income)" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </div>
+              <p class="text-sm font-medium">Pemasukan</p>
+            </div>
+            <div class="flex items-center justify-between text-sm mb-1.5">
+              <span class="text-faint">Rencana</span>
+              <span id="planIncomeTotal" class="font-mono font-semibold">Rp 0</span>
+            </div>
+            <div class="flex items-center justify-between text-sm mb-2">
+              <span class="text-faint">Realisasi</span>
+              <span id="actualIncomeTotal" class="font-mono font-semibold" style="color:var(--income)">Rp 0</span>
+            </div>
+            <div class="progress-track mb-1.5"><div id="incomeProgress" class="progress-fill" style="background:var(--income)"></div></div>
+            <p id="incomeDiffLabel" class="text-xs text-faint"></p>
+          </div>
+          <div class="surface rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-7 h-7 rounded-lg grid place-items-center" style="background:var(--expense-soft)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--expense)" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              </div>
+              <p class="text-sm font-medium">Pengeluaran</p>
+            </div>
+            <div class="flex items-center justify-between text-sm mb-1.5">
+              <span class="text-faint">Rencana</span>
+              <span id="planExpenseTotal" class="font-mono font-semibold">Rp 0</span>
+            </div>
+            <div class="flex items-center justify-between text-sm mb-2">
+              <span class="text-faint">Realisasi</span>
+              <span id="actualExpenseTotal" class="font-mono font-semibold" style="color:var(--expense)">Rp 0</span>
+            </div>
+            <div class="progress-track mb-1.5"><div id="expenseProgress" class="progress-fill" style="background:var(--expense)"></div></div>
+            <p id="expenseDiffLabel" class="text-xs text-faint"></p>
+          </div>
+        </div>
+
+        <!-- Per category comparison -->
+        <div class="surface rounded-2xl p-4 mb-5">
+          <p class="font-display font-semibold text-sm mb-3">Rencana vs Realisasi per Kategori</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[520px]">
+              <thead class="text-xs uppercase text-muted">
+                <tr>
+                  <th class="text-left font-medium py-2">Kategori</th>
+                  <th class="text-right font-medium py-2">Rencana</th>
+                  <th class="text-right font-medium py-2">Realisasi</th>
+                  <th class="text-right font-medium py-2">Selisih</th>
+                </tr>
+              </thead>
+              <tbody id="compareTableBody" class="divide-y divide-c"></tbody>
+            </table>
+          </div>
+          <p id="compareEmpty" class="text-center text-sm text-faint py-8 hidden">Belum ada rencana untuk bulan ini.</p>
+        </div>
+
+        <!-- Plan list -->
+        <div class="surface rounded-2xl p-4">
+          <p class="font-display font-semibold text-sm mb-3">Daftar Rencana Bulan Ini</p>
+          <div id="planList" class="divide-y divide-c"></div>
+          <p id="planEmpty" class="skeleton-empty rounded-xl py-8 text-center text-sm text-faint hidden">Belum ada rencana. Contoh: "Gajian" tanggal 1, "Bayar kos" tanggal 5, "Listrik" tanggal 10.</p>
+        </div>
+      </section>
+
+      <!-- LAPORAN VIEW -->
+      <section id="view-laporan" class="fade-in hidden">
+        <h1 class="font-display font-bold text-2xl md:text-3xl mb-3">Laporan &amp; Data</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+          <div class="surface rounded-2xl p-4">
+            <p class="font-display font-semibold text-sm mb-3">Tren 6 Bulan Terakhir</p>
+            <div class="h-64"><canvas id="lineChart2"></canvas></div>
+          </div>
+          <div class="surface rounded-2xl p-4">
+            <p class="font-display font-semibold text-sm mb-3">Distribusi Kategori (Semua Waktu)</p>
+            <div class="h-64 grid place-items-center"><canvas id="pieChart2"></canvas></div>
+          </div>
+        </div>
+        <div class="surface rounded-2xl p-4">
+          <p class="font-display font-semibold text-sm mb-3">Kelola Data</p>
+          <p class="text-muted text-sm mb-3">Semua data tersimpan di penyimpanan lokal browser ini. Ekspor untuk cadangan, atau impor untuk memulihkan.</p>
+          <div class="flex flex-wrap gap-3">
+            <button id="exportBtnMain" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold">Ekspor JSON</button>
+            <label class="btn-ghost rounded-xl px-4 py-2 text-sm font-semibold cursor-pointer">
+              Impor JSON
+              <input type="file" id="importInputMain" accept=".json" class="hidden">
+            </label>
+            <button id="resetBtn" class="rounded-xl px-4 py-2 text-sm font-semibold" style="background:var(--expense-soft); color:var(--expense)">Hapus Semua Data</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Mobile bottom nav -->
+<nav class="flex md:hidden fixed bottom-0 left-0 right-0 surface border-t border-c items-center justify-around px-1 py-1.5 z-30">
+  <button data-view="dashboard" class="nav-btn active nav-item flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] flex-1 min-w-0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    Dashboard
+  </button>
+  <button data-view="transaksi" class="nav-btn nav-item flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] flex-1 min-w-0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3" cy="6" r="1.5"/><circle cx="3" cy="12" r="1.5"/><circle cx="3" cy="18" r="1.5"/></svg>
+    Transaksi
+  </button>
+  <button data-view="budget" class="nav-btn nav-item flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] flex-1 min-w-0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>
+    Anggaran
+  </button>
+  <button data-view="rencana" class="nav-btn nav-item flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] flex-1 min-w-0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M8 14l2 2 4-4"/></svg>
+    Rencana
+  </button>
+  <button data-view="laporan" class="nav-btn nav-item flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] flex-1 min-w-0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>
+    Laporan
+  </button>
+</nav>
+
+<!-- Modal: Transaksi -->
+<div id="txModal" class="fixed inset-0 z-50 hidden modal-backdrop grid place-items-end md:place-items-center p-0 md:p-4">
+  <div class="surface rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-5 fade-in">
+    <div class="flex items-center justify-between mb-3">
+      <h2 id="txModalTitle" class="font-display font-bold text-lg">Tambah Transaksi</h2>
+      <button id="closeTxModal" class="btn-ghost w-8 h-8 rounded-lg grid place-items-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="txForm" class="flex flex-col gap-3.5">
+      <input type="hidden" id="txId">
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Tanggal</label>
+        <input type="date" id="txDate" required class="w-full rounded-xl px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Kategori</label>
+        <select id="txCategory" required class="w-full rounded-xl px-3 py-2 text-sm"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Deskripsi</label>
+        <input type="text" id="txDesc" placeholder="Contoh: Makan siang di kantor" class="w-full rounded-xl px-3 py-2 text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium block mb-1.5" style="color:var(--income)">Pemasukan (Rp)</label>
+          <input type="text" inputmode="numeric" id="txIncome" placeholder="0" class="w-full rounded-xl px-3 py-2 text-sm font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-medium block mb-1.5" style="color:var(--expense)">Pengeluaran (Rp)</label>
+          <input type="text" inputmode="numeric" id="txExpense" placeholder="0" class="w-full rounded-xl px-3 py-2 text-sm font-mono">
+        </div>
+      </div>
+      <p class="text-xs text-faint">Isi salah satu kolom saja: pemasukan atau pengeluaran.</p>
+      <button type="submit" class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold mt-1">Simpan Transaksi</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Rencana -->
+<div id="planModal" class="fixed inset-0 z-50 hidden modal-backdrop grid place-items-end md:place-items-center p-0 md:p-4">
+  <div class="surface rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-5 fade-in">
+    <div class="flex items-center justify-between mb-3">
+      <h2 id="planModalTitle" class="font-display font-bold text-lg">Tambah Rencana</h2>
+      <button id="closePlanModal" class="btn-ghost w-8 h-8 rounded-lg grid place-items-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="planForm" class="flex flex-col gap-3.5">
+      <input type="hidden" id="planId">
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Tanggal Rencana</label>
+        <input type="date" id="planDate" required class="w-full rounded-xl px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Kategori</label>
+        <select id="planCategory" required class="w-full rounded-xl px-3 py-2 text-sm"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Deskripsi</label>
+        <input type="text" id="planDesc" placeholder="Contoh: Gajian, Bayar kos, Listrik" class="w-full rounded-xl px-3 py-2 text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium block mb-1.5" style="color:var(--income)">Rencana Pemasukan (Rp)</label>
+          <input type="text" inputmode="numeric" id="planIncome" placeholder="0" class="w-full rounded-xl px-3 py-2 text-sm font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-medium block mb-1.5" style="color:var(--expense)">Rencana Pengeluaran (Rp)</label>
+          <input type="text" inputmode="numeric" id="planExpense" placeholder="0" class="w-full rounded-xl px-3 py-2 text-sm font-mono">
+        </div>
+      </div>
+      <p class="text-xs text-faint">Isi salah satu kolom saja: rencana pemasukan atau pengeluaran.</p>
+      <button type="submit" class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold mt-1">Simpan Rencana</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Budget -->
+<div id="budgetModal" class="fixed inset-0 z-50 hidden modal-backdrop grid place-items-end md:place-items-center p-0 md:p-4">
+  <div class="surface rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-5 fade-in">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display font-bold text-lg">Atur Anggaran Kategori</h2>
+      <button id="closeBudgetModal" class="btn-ghost w-8 h-8 rounded-lg grid place-items-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="budgetForm" class="flex flex-col gap-3.5">
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Kategori</label>
+        <select id="budgetCategory" required class="w-full rounded-xl px-3 py-2 text-sm"></select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted block mb-1.5">Batas Anggaran Bulanan (Rp)</label>
+        <input type="text" inputmode="numeric" id="budgetAmount" required placeholder="0" class="w-full rounded-xl px-3 py-2 text-sm font-mono">
+      </div>
+      <p class="text-xs text-faint">Berlaku untuk bulan yang sedang dipilih dan bulan-bulan berikutnya, kecuali diubah lagi.</p>
+      <button type="submit" class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold mt-1">Simpan Anggaran</button>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+  <div class="surface rounded-xl px-4 py-2.5 shadow-lg text-sm font-medium flex items-center gap-2 toast">
+    <span id="toastIcon"></span>
+    <span id="toastMsg"></span>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Constants & State ---------- */
+  const CATEGORIES = {
+    expense: ["Makanan","Transportasi","Belanja","Hiburan","Kesehatan","Pendidikan","Tagihan","Lainnya"],
+    income: ["Gaji","Bonus","Investasi","Hadiah","Pemasukan Lainnya"]
+  };
+  const STORAGE_KEY = "dompetku_transactions";
+  const BUDGET_KEY = "dompetku_budgets";
+  const PLAN_KEY = "dompetku_plans";
+  const THEME_KEY = "dompetku_theme";
+
+  let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  let budgets = JSON.parse(localStorage.getItem(BUDGET_KEY) || "{}"); // { "2026-07": { "Makanan": 500000 } }
+  let plans = JSON.parse(localStorage.getItem(PLAN_KEY) || "[]"); // [{id,date,category,desc,income,expense}]
+  let currentView = "dashboard";
+  let searchTerm = "";
+  let selectedMonth = monthKey(new Date());
+  let lineChart, pieChart, lineChart2, pieChart2;
+  let editingTxId = null;
+  let editingPlanId = null;
+
+  /* ---------- Helpers ---------- */
+  function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+  function monthLabel(key){
+    const [y,m] = key.split("-").map(Number);
+    return new Date(y, m-1, 1).toLocaleDateString("id-ID", { month:"long", year:"numeric" });
+  }
+  function formatRupiah(n){
+    const sign = n < 0 ? "-" : "";
+    return sign + "Rp " + Math.abs(Math.round(n)).toLocaleString("id-ID");
+  }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function formatNumberInput(el){
+    const raw = el.value.replace(/[^\d]/g, "");
+    el.value = raw ? Number(raw).toLocaleString("id-ID") : "";
+  }
+  function parseFormattedNumber(el){
+    return parseFloat(el.value.replace(/[^\d]/g, "")) || 0;
+  }
+  function setFormattedValue(el, num){
+    el.value = num ? Number(num).toLocaleString("id-ID") : "";
+  }
+  ["txIncome","txExpense","planIncome","planExpense","budgetAmount"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => formatNumberInput(el));
+  });
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+    localStorage.setItem(BUDGET_KEY, JSON.stringify(budgets));
+    localStorage.setItem(PLAN_KEY, JSON.stringify(plans));
+  }
+  function showToast(msg, type="ok"){
+    const toast = document.getElementById("toast");
+    const icon = document.getElementById("toastIcon");
+    document.getElementById("toastMsg").textContent = msg;
+    icon.innerHTML = type === "ok"
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--income)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--expense)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
+    toast.classList.remove("hidden");
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=> toast.classList.add("hidden"), 2600);
+  }
+
+  /* ---------- Theme ---------- */
+  function applyTheme(theme){
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    const label = theme === "dark" ? "Mode Terang" : "Mode Gelap";
+    document.getElementById("themeLabelDesktop").textContent = label;
+    const sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+    const moon = '<path d="M21 12.5A8.5 8.5 0 1 1 11.5 3 7 7 0 0 0 21 12.5Z"/>';
+    document.getElementById("themeIconDesktop").innerHTML = theme === "dark" ? moon : sun;
+    document.getElementById("themeIconMobile").innerHTML = theme === "dark" ? moon : sun;
+    localStorage.setItem(THEME_KEY, theme);
+    renderCharts();
+  }
+  function toggleTheme(){
+    const cur = document.documentElement.classList.contains("dark") ? "dark" : "light";
+    applyTheme(cur === "dark" ? "light" : "dark");
+  }
+  document.getElementById("themeToggleDesktop").addEventListener("click", toggleTheme);
+  document.getElementById("themeToggleMobile").addEventListener("click", toggleTheme);
+
+  /* ---------- Nav ---------- */
+  function setView(view){
+    currentView = view;
+    document.querySelectorAll("[id^='view-']").forEach(el => el.classList.add("hidden"));
+    document.getElementById("view-" + view).classList.remove("hidden");
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.view === view);
+    });
+    if (view === "laporan") renderReportCharts();
+    if (view === "rencana") renderRencana();
+  }
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => setView(btn.dataset.view));
+  });
+
+  /* ---------- Month filter ---------- */
+  function populateMonthFilter(){
+    const monthsSet = new Set(transactions.map(t => t.date.slice(0,7)));
+    plans.forEach(p => monthsSet.add(p.date.slice(0,7)));
+    monthsSet.add(monthKey(new Date()));
+    monthsSet.add(selectedMonth);
+    const months = [...monthsSet].sort().reverse();
+    const optionsHtml = months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join("");
+    const sel = document.getElementById("monthFilter");
+    const selMobile = document.getElementById("monthFilterMobile");
+    sel.innerHTML = optionsHtml;
+    selMobile.innerHTML = optionsHtml;
+    sel.value = selectedMonth;
+    selMobile.value = selectedMonth;
+  }
+  function onMonthChange(e){
+    selectedMonth = e.target.value;
+    document.getElementById("monthFilter").value = selectedMonth;
+    document.getElementById("monthFilterMobile").value = selectedMonth;
+    renderAll();
+  }
+  document.getElementById("monthFilter").addEventListener("change", onMonthChange);
+  document.getElementById("monthFilterMobile").addEventListener("change", onMonthChange);
+
+  /* ---------- Search ---------- */
+  function onSearchInput(e){
+    searchTerm = e.target.value.trim().toLowerCase();
+    document.getElementById("searchInputDesktop").value = e.target.value;
+    document.getElementById("searchInputMobile").value = e.target.value;
+    renderTransactionTable();
+    renderRecent();
+  }
+  document.getElementById("searchInputDesktop").addEventListener("input", onSearchInput);
+  document.getElementById("searchInputMobile").addEventListener("input", onSearchInput);
+
+  /* ---------- Category select population ---------- */
+  function populateCategorySelect(el){
+    el.innerHTML = `
+      <optgroup label="Pengeluaran">${CATEGORIES.expense.map(c=>`<option value="${c}">${c}</option>`).join("")}</optgroup>
+      <optgroup label="Pemasukan">${CATEGORIES.income.map(c=>`<option value="${c}">${c}</option>`).join("")}</optgroup>
+    `;
+  }
+  // Budgets only ever compare against expenses (see renderBudgets: it sums t.expense), so
+  // offering income categories here let users "set a budget" that could never show any
+  // progress, which looked like a bug. Restrict this select to expense categories only.
+  function populateExpenseCategorySelect(el){
+    el.innerHTML = CATEGORIES.expense.map(c=>`<option value="${c}">${c}</option>`).join("");
+  }
+  populateCategorySelect(document.getElementById("txCategory"));
+  populateExpenseCategorySelect(document.getElementById("budgetCategory"));
+  populateCategorySelect(document.getElementById("planCategory"));
+
+  /* ---------- Transaction Modal ---------- */
+  const txModal = document.getElementById("txModal");
+  function openTxModal(tx=null){
+    editingTxId = tx ? tx.id : null;
+    document.getElementById("txModalTitle").textContent = tx ? "Edit Transaksi" : "Tambah Transaksi";
+    document.getElementById("txId").value = tx ? tx.id : "";
+    document.getElementById("txDate").value = tx ? tx.date : new Date().toISOString().slice(0,10);
+    document.getElementById("txCategory").value = tx ? tx.category : CATEGORIES.expense[0];
+    document.getElementById("txDesc").value = tx ? tx.desc : "";
+    document.getElementById("txIncome").value = "";
+    document.getElementById("txExpense").value = "";
+    if (tx && tx.income) setFormattedValue(document.getElementById("txIncome"), tx.income);
+    if (tx && tx.expense) setFormattedValue(document.getElementById("txExpense"), tx.expense);
+    txModal.classList.remove("hidden");
+  }
+  function closeTxModal(){ txModal.classList.add("hidden"); document.getElementById("txForm").reset(); }
+  document.getElementById("addTxBtn").addEventListener("click", () => openTxModal());
+  document.getElementById("closeTxModal").addEventListener("click", closeTxModal);
+  txModal.addEventListener("click", (e) => { if (e.target === txModal) closeTxModal(); });
+
+  document.getElementById("txForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const income = parseFormattedNumber(document.getElementById("txIncome"));
+    const expense = parseFormattedNumber(document.getElementById("txExpense"));
+    if (income === 0 && expense === 0){
+      showToast("Isi jumlah pemasukan atau pengeluaran", "err");
+      return;
+    }
+    if (income > 0 && expense > 0){
+      showToast("Isi hanya salah satu: pemasukan ATAU pengeluaran", "err");
+      return;
+    }
+    const data = {
+      id: editingTxId || uid(),
+      date: document.getElementById("txDate").value,
+      category: document.getElementById("txCategory").value,
+      desc: document.getElementById("txDesc").value.trim(),
+      income, expense
+    };
+    if (editingTxId){
+      const idx = transactions.findIndex(t => t.id === editingTxId);
+      transactions[idx] = data;
+      showToast("Transaksi diperbarui");
+    } else {
+      transactions.push(data);
+      showToast("Transaksi ditambahkan");
+    }
+    save();
+    closeTxModal();
+    selectedMonth = data.date.slice(0,7);
+    populateMonthFilter();
+    renderAll();
+  });
+
+  /* ---------- Budget Modal ---------- */
+  const budgetModal = document.getElementById("budgetModal");
+  document.getElementById("addBudgetBtn").addEventListener("click", () => {
+    document.getElementById("budgetForm").reset();
+    budgetModal.classList.remove("hidden");
+  });
+  document.getElementById("closeBudgetModal").addEventListener("click", () => budgetModal.classList.add("hidden"));
+  budgetModal.addEventListener("click", (e) => { if (e.target === budgetModal) budgetModal.classList.add("hidden"); });
+
+  document.getElementById("budgetForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cat = document.getElementById("budgetCategory").value;
+    const amount = parseFormattedNumber(document.getElementById("budgetAmount"));
+    ensureMonthBudgetEntry(selectedMonth)[cat] = amount;
+    save();
+    budgetModal.classList.add("hidden");
+    showToast("Anggaran disimpan");
+    renderBudgets();
+  });
+
+  /* ---------- Rencana (Plan) Modal ---------- */
+  const planModal = document.getElementById("planModal");
+  function openPlanModal(plan=null){
+    editingPlanId = plan ? plan.id : null;
+    document.getElementById("planModalTitle").textContent = plan ? "Edit Rencana" : "Tambah Rencana";
+    document.getElementById("planId").value = plan ? plan.id : "";
+    document.getElementById("planDate").value = plan ? plan.date : (selectedMonth + "-01");
+    document.getElementById("planCategory").value = plan ? plan.category : CATEGORIES.income[0];
+    document.getElementById("planDesc").value = plan ? plan.desc : "";
+    document.getElementById("planIncome").value = "";
+    document.getElementById("planExpense").value = "";
+    if (plan && plan.income) setFormattedValue(document.getElementById("planIncome"), plan.income);
+    if (plan && plan.expense) setFormattedValue(document.getElementById("planExpense"), plan.expense);
+    planModal.classList.remove("hidden");
+  }
+  function closePlanModal(){ planModal.classList.add("hidden"); document.getElementById("planForm").reset(); }
+  document.getElementById("addPlanBtn").addEventListener("click", () => openPlanModal());
+  document.getElementById("closePlanModal").addEventListener("click", closePlanModal);
+  planModal.addEventListener("click", (e) => { if (e.target === planModal) closePlanModal(); });
+
+  document.getElementById("planForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const income = parseFormattedNumber(document.getElementById("planIncome"));
+    const expense = parseFormattedNumber(document.getElementById("planExpense"));
+    if (income === 0 && expense === 0){
+      showToast("Isi jumlah rencana pemasukan atau pengeluaran", "err");
+      return;
+    }
+    if (income > 0 && expense > 0){
+      showToast("Isi hanya salah satu: rencana pemasukan ATAU pengeluaran", "err");
+      return;
+    }
+    const data = {
+      id: editingPlanId || uid(),
+      date: document.getElementById("planDate").value,
+      category: document.getElementById("planCategory").value,
+      desc: document.getElementById("planDesc").value.trim(),
+      income, expense
+    };
+    if (editingPlanId){
+      const idx = plans.findIndex(p => p.id === editingPlanId);
+      plans[idx] = data;
+      showToast("Rencana diperbarui");
+    } else {
+      plans.push(data);
+      showToast("Rencana ditambahkan untuk " + monthLabel(data.date.slice(0,7)));
+    }
+    save();
+    closePlanModal();
+    selectedMonth = data.date.slice(0,7);
+    populateMonthFilter();
+    renderAll();
+    renderRencana();
+  });
+
+  /* ---------- Delete / Edit handlers (event delegation) ---------- */
+  document.addEventListener("click", (e) => {
+    const editBtn = e.target.closest("[data-edit]");
+    const delBtn = e.target.closest("[data-delete]");
+    const delBudget = e.target.closest("[data-delete-budget]");
+    const editPlanBtn = e.target.closest("[data-edit-plan]");
+    const delPlanBtn = e.target.closest("[data-delete-plan]");
+    const realizeBtn = e.target.closest("[data-realize-plan]");
+    if (editBtn){
+      const tx = transactions.find(t => t.id === editBtn.dataset.edit);
+      if (tx) openTxModal(tx);
+    }
+    if (delBtn){
+      if (confirm("Hapus transaksi ini?")){
+        transactions = transactions.filter(t => t.id !== delBtn.dataset.delete);
+        save();
+        populateMonthFilter();
+        renderAll();
+        showToast("Transaksi dihapus");
+      }
+    }
+    if (delBudget){
+      if (confirm("Hapus anggaran kategori ini?")){
+        delete ensureMonthBudgetEntry(selectedMonth)[delBudget.dataset.deleteBudget];
+        save();
+        renderBudgets();
+        showToast("Anggaran dihapus");
+      }
+    }
+    if (editPlanBtn){
+      const plan = plans.find(p => p.id === editPlanBtn.dataset.editPlan);
+      if (plan) openPlanModal(plan);
+    }
+    if (delPlanBtn){
+      if (confirm("Hapus rencana ini?")){
+        plans = plans.filter(p => p.id !== delPlanBtn.dataset.deletePlan);
+        save();
+        renderRencana();
+        showToast("Rencana dihapus");
+      }
+    }
+    if (realizeBtn){
+      const plan = plans.find(p => p.id === realizeBtn.dataset.realizePlan);
+      if (plan){
+        const newTxId = uid();
+        transactions.push({
+          id: newTxId, date: plan.date, category: plan.category,
+          desc: plan.desc, income: plan.income, expense: plan.expense
+        });
+        plan.realizedTxId = newTxId;
+        save();
+        populateMonthFilter();
+        renderAll();
+        renderRencana();
+        showToast("Rencana ditandai sudah terjadi & tercatat sebagai transaksi");
+      }
+    }
+  });
+
+  /* ---------- Export / Import ---------- */
+  function exportData(){
+    const payload = { transactions, budgets, plans, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dompetku-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Data diekspor");
+  }
+  function importData(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try{
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data.transactions)) throw new Error("format tidak valid");
+        transactions = data.transactions;
+        budgets = data.budgets || {};
+        plans = data.plans || [];
+        save();
+        populateMonthFilter();
+        renderAll();
+        showToast("Data berhasil diimpor");
+      } catch(err){
+        showToast("Gagal impor: file tidak valid", "err");
+      }
+    };
+    reader.readAsText(file);
+  }
+  document.getElementById("exportBtnDesktop").addEventListener("click", exportData);
+  document.getElementById("exportBtnMain").addEventListener("click", exportData);
+  document.getElementById("importInputDesktop").addEventListener("change", (e) => e.target.files[0] && importData(e.target.files[0]));
+  document.getElementById("importInputMain").addEventListener("change", (e) => e.target.files[0] && importData(e.target.files[0]));
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("Yakin ingin menghapus SEMUA data transaksi dan anggaran? Tindakan ini tidak dapat dibatalkan.")){
+      transactions = []; budgets = {}; plans = [];
+      save();
+      populateMonthFilter();
+      renderAll();
+      showToast("Semua data dihapus");
+    }
+  });
+
+  /* ---------- Budget carry-forward helpers ---------- */
+  // The UI tells the user a budget "applies to the selected month and following months,
+  // unless changed again". The original code only ever read budgets[selectedMonth], so a
+  // new month always showed an empty budget grid. This resolves the budget that is actually
+  // in effect for a given month: its own entry if set, otherwise the nearest earlier month
+  // that has one.
+  function getEffectiveBudgets(monthK){
+    if (budgets[monthK] && Object.keys(budgets[monthK]).length) return budgets[monthK];
+    const priorKeys = Object.keys(budgets).filter(k => k < monthK && Object.keys(budgets[k]||{}).length).sort();
+    return priorKeys.length ? budgets[priorKeys[priorKeys.length-1]] : {};
+  }
+  // Materializes an explicit, editable budget entry for a month, seeded from whatever is
+  // currently in effect (inherited), so edits made "this month" don't wipe out inherited
+  // categories that weren't touched.
+  function ensureMonthBudgetEntry(monthK){
+    if (!budgets[monthK]) budgets[monthK] = { ...getEffectiveBudgets(monthK) };
+    return budgets[monthK];
+  }
+
+  /* ---------- Data getters ---------- */
+  function txForMonth(monthK){
+    return transactions.filter(t => t.date.slice(0,7) === monthK);
+  }
+  function filteredTx(){
+    let list = txForMonth(selectedMonth);
+    if (searchTerm){
+      list = list.filter(t =>
+        t.desc.toLowerCase().includes(searchTerm) ||
+        t.category.toLowerCase().includes(searchTerm)
+      );
+    }
+    return list.slice().sort((a,b) => b.date.localeCompare(a.date));
+  }
+
+  /* ---------- Render: Stats ---------- */
+  function renderStats(){
+    const monthTx = txForMonth(selectedMonth);
+    const income = monthTx.reduce((s,t) => s + (t.income||0), 0);
+    const expense = monthTx.reduce((s,t) => s + (t.expense||0), 0);
+    const totalBalance = transactions.reduce((s,t) => s + (t.income||0) - (t.expense||0), 0);
+    const net = income - expense;
+
+    document.getElementById("periodLabel").textContent = monthLabel(selectedMonth);
+    document.getElementById("statBalance").textContent = formatRupiah(totalBalance);
+    document.getElementById("statIncome").textContent = formatRupiah(income);
+    document.getElementById("statExpense").textContent = formatRupiah(expense);
+    document.getElementById("statNet").textContent = formatRupiah(net);
+    document.getElementById("statNet").style.color = net >= 0 ? "var(--income)" : "var(--expense)";
+    document.getElementById("statIncomeCount").textContent = `${monthTx.filter(t=>t.income>0).length} transaksi bulan ini`;
+    document.getElementById("statExpenseCount").textContent = `${monthTx.filter(t=>t.expense>0).length} transaksi bulan ini`;
+  }
+
+  /* ---------- Render: Recent list (dashboard) ---------- */
+  function renderRecent(){
+    const list = filteredTx().slice(0,6);
+    const container = document.getElementById("recentList");
+    document.getElementById("recentEmpty").classList.toggle("hidden", list.length > 0);
+    container.innerHTML = list.map(t => recentRowHTML(t)).join("");
+  }
+  function recentRowHTML(t){
+    const isIncome = t.income > 0;
+    const amount = isIncome ? t.income : t.expense;
+    const color = isIncome ? "var(--income)" : "var(--expense)";
+    const sign = isIncome ? "+" : "−";
+    return `
+      <div class="flex items-center justify-between py-2.5 gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-lg grid place-items-center flex-shrink-0" style="background:${isIncome ? 'var(--income-soft)' : 'var(--expense-soft)'}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5">${isIncome ? '<path d="M12 19V5M5 12l7-7 7 7"/>' : '<path d="M12 5v14M5 12l7 7 7-7"/>'}</svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium truncate">${escapeHtml(t.desc) || t.category}</p>
+            <p class="text-xs text-faint">${t.category} · ${formatDate(t.date)}</p>
+          </div>
+        </div>
+        <p class="font-mono font-semibold text-sm flex-shrink-0" style="color:${color}">${sign} ${formatRupiah(amount)}</p>
+      </div>`;
+  }
+  function formatDate(d){
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString("id-ID", { day:"numeric", month:"short", year:"numeric" });
+  }
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  /* ---------- Render: Transaction table ---------- */
+  function renderTransactionTable(){
+    const list = filteredTx();
+    const tbody = document.getElementById("txTableBody");
+    document.getElementById("txEmpty").classList.toggle("hidden", list.length > 0);
+    tbody.innerHTML = list.map(t => `
+      <tr class="row-hover transition">
+        <td class="px-4 py-2.5 text-sm whitespace-nowrap">${formatDate(t.date)}</td>
+        <td class="px-4 py-2.5 text-sm">
+          <span class="pill px-2.5 py-1 text-xs font-medium" style="background:var(--surface-2)">${t.category}</span>
+        </td>
+        <td class="px-4 py-2.5 text-sm text-muted max-w-[220px] truncate">${escapeHtml(t.desc) || "—"}</td>
+        <td class="px-4 py-2.5 text-sm text-right font-mono" style="color:var(--income)">${t.income > 0 ? formatRupiah(t.income) : "—"}</td>
+        <td class="px-4 py-2.5 text-sm text-right font-mono" style="color:var(--expense)">${t.expense > 0 ? formatRupiah(t.expense) : "—"}</td>
+        <td class="px-4 py-2.5 text-center whitespace-nowrap">
+          <button data-edit="${t.id}" class="btn-ghost rounded-lg p-1.5 mr-1" title="Edit">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button data-delete="${t.id}" class="btn-ghost rounded-lg p-1.5" title="Hapus" style="color:var(--expense)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  /* ---------- Render: Budgets ---------- */
+  function renderBudgets(){
+    const monthBudgets = getEffectiveBudgets(selectedMonth);
+    const monthTx = txForMonth(selectedMonth);
+    const cats = Object.keys(monthBudgets);
+    const grid = document.getElementById("budgetGrid");
+    document.getElementById("budgetEmpty").classList.toggle("hidden", cats.length > 0);
+    grid.innerHTML = cats.map(cat => {
+      const limit = monthBudgets[cat];
+      const spent = monthTx.filter(t => t.category === cat).reduce((s,t) => s + (t.expense||0), 0);
+      const pct = limit > 0 ? Math.min(100, (spent/limit)*100) : 0;
+      const over = spent > limit;
+      const color = over ? "var(--expense)" : (pct > 75 ? "var(--warn)" : "var(--accent)");
+      return `
+        <div class="surface rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <p class="font-medium text-sm">${cat}</p>
+            <button data-delete-budget="${cat}" class="text-faint hover:text-current" title="Hapus anggaran">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="progress-track mb-2">
+            <div class="progress-fill" style="width:${pct}%; background:${color}"></div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-mono" style="color:${color}">${formatRupiah(spent)}</span>
+            <span class="text-faint">dari ${formatRupiah(limit)}</span>
+          </div>
+          ${over ? `<p class="text-xs mt-1.5 font-medium" style="color:var(--expense)">Melebihi anggaran ${formatRupiah(spent-limit)}</p>` : ""}
+        </div>`;
+    }).join("");
+  }
+
+  /* ---------- Render: Rencana vs Realisasi ---------- */
+  function plansForMonth(monthK){
+    return plans.filter(p => p.date.slice(0,7) === monthK).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  }
+
+  function renderRencana(){
+    document.getElementById("rencanaMonthLabel").textContent = monthLabel(selectedMonth);
+    const monthPlans = plansForMonth(selectedMonth);
+    // Transaction ids already explicitly claimed by some plan's realizedTxId. These must be
+    // excluded from the fuzzy fallback match below, otherwise two identical plans (same date,
+    // category, and amount) both match the single transaction created when only ONE of them
+    // was realized, incorrectly showing both as "sudah terjadi".
+    const claimedTxIds = new Set(plans.filter(x => x.realizedTxId).map(x => x.realizedTxId));
+    const monthTx = txForMonth(selectedMonth);
+
+    const planIncome = monthPlans.reduce((s,p)=>s+(p.income||0),0);
+    const planExpense = monthPlans.reduce((s,p)=>s+(p.expense||0),0);
+    const actualIncome = monthTx.reduce((s,t)=>s+(t.income||0),0);
+    const actualExpense = monthTx.reduce((s,t)=>s+(t.expense||0),0);
+
+    document.getElementById("planIncomeTotal").textContent = formatRupiah(planIncome);
+    document.getElementById("actualIncomeTotal").textContent = formatRupiah(actualIncome);
+    document.getElementById("planExpenseTotal").textContent = formatRupiah(planExpense);
+    document.getElementById("actualExpenseTotal").textContent = formatRupiah(actualExpense);
+
+    const incomePct = planIncome > 0 ? Math.min(100, (actualIncome/planIncome)*100) : (actualIncome > 0 ? 100 : 0);
+    const expensePct = planExpense > 0 ? Math.min(100, (actualExpense/planExpense)*100) : (actualExpense > 0 ? 100 : 0);
+    document.getElementById("incomeProgress").style.width = incomePct + "%";
+    document.getElementById("expenseProgress").style.width = expensePct + "%";
+
+    const incomeDiff = actualIncome - planIncome;
+    const expenseDiff = actualExpense - planExpense;
+    document.getElementById("incomeDiffLabel").textContent = planIncome === 0
+      ? "Belum ada rencana pemasukan bulan ini"
+      : (incomeDiff >= 0 ? `Sudah tercapai, lebih ${formatRupiah(incomeDiff)}` : `Masih kurang ${formatRupiah(Math.abs(incomeDiff))} dari rencana`);
+    const expenseDiffLabel = document.getElementById("expenseDiffLabel");
+    if (planExpense === 0){
+      expenseDiffLabel.textContent = "Belum ada rencana pengeluaran bulan ini";
+      expenseDiffLabel.style.color = "";
+    } else if (expenseDiff > 0){
+      expenseDiffLabel.textContent = `Melebihi rencana sebesar ${formatRupiah(expenseDiff)}`;
+      expenseDiffLabel.style.color = "var(--expense)";
+    } else {
+      expenseDiffLabel.textContent = `Masih sesuai rencana, sisa ${formatRupiah(Math.abs(expenseDiff))}`;
+      expenseDiffLabel.style.color = "var(--income)";
+    }
+
+    // Per-category comparison
+    const catSet = new Set([...monthPlans.map(p=>p.category), ...monthTx.map(t=>t.category)]);
+    const rows = [...catSet].map(cat => {
+      const planAmt = monthPlans.filter(p=>p.category===cat).reduce((s,p)=>s+(p.income||0)+(p.expense||0),0);
+      const actualAmt = monthTx.filter(t=>t.category===cat).reduce((s,t)=>s+(t.income||0)+(t.expense||0),0);
+      // Determine type from the actual recorded entries for this category (robust even if a
+      // category name happens to exist in both lists), falling back to the static lists only
+      // when there is no data yet for this category this month.
+      const entriesForCat = [...monthPlans, ...monthTx].filter(x => x.category === cat);
+      const isIncomeCat = entriesForCat.length
+        ? entriesForCat.some(x => (x.income||0) > 0)
+        : (CATEGORIES.income.includes(cat) && !CATEGORIES.expense.includes(cat));
+      return { cat, planAmt, actualAmt, diff: actualAmt - planAmt, isIncomeCat };
+    }).sort((a,b) => b.planAmt - a.planAmt);
+
+    const tbody = document.getElementById("compareTableBody");
+    document.getElementById("compareEmpty").classList.toggle("hidden", rows.length > 0);
+    tbody.innerHTML = rows.map(r => {
+      const overspend = !r.isIncomeCat && r.diff > 0;
+      const diffColor = overspend ? "var(--expense)" : (r.isIncomeCat && r.diff < 0 ? "var(--warn)" : "var(--income)");
+      const sign = r.diff > 0 ? "+" : "";
+      return `
+        <tr class="row-hover transition">
+          <td class="py-2 text-sm">${r.cat}</td>
+          <td class="py-2 text-sm text-right font-mono text-muted">${formatRupiah(r.planAmt)}</td>
+          <td class="py-2 text-sm text-right font-mono">${formatRupiah(r.actualAmt)}</td>
+          <td class="py-2 text-sm text-right font-mono" style="color:${diffColor}">${sign}${formatRupiah(r.diff)}</td>
+        </tr>`;
+    }).join("");
+
+    // Plan list
+    const planListEl = document.getElementById("planList");
+    document.getElementById("planEmpty").classList.toggle("hidden", monthPlans.length > 0);
+    planListEl.innerHTML = monthPlans.map(p => {
+      const isIncome = p.income > 0;
+      const amount = isIncome ? p.income : p.expense;
+      const color = isIncome ? "var(--income)" : "var(--expense)";
+      const realized = p.realizedTxId
+        ? transactions.some(t => t.id === p.realizedTxId)
+        : transactions.some(t => !claimedTxIds.has(t.id) && t.date === p.date && t.category === p.category && (t.income||0) === (p.income||0) && (t.expense||0) === (p.expense||0));
+      return `
+        <div class="flex flex-col gap-2 py-2.5">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-lg grid place-items-center flex-shrink-0" style="background:${isIncome ? 'var(--income-soft)' : 'var(--expense-soft)'}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5">${isIncome ? '<path d="M12 19V5M5 12l7-7 7 7"/>' : '<path d="M12 5v14M5 12l7 7 7-7"/>'}</svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium truncate">${escapeHtml(p.desc) || p.category}</p>
+              <p class="text-xs text-faint truncate">${p.category} · ${formatDate(p.date)}</p>
+            </div>
+            <p class="font-mono font-semibold text-sm flex-shrink-0" style="color:${color}">${formatRupiah(amount)}</p>
+          </div>
+          <div class="flex items-center justify-between gap-2 pl-12">
+            <span class="text-xs flex-shrink-0" style="color:${realized ? 'var(--income)' : 'var(--text-faint)'}">${realized ? 'sudah terjadi' : 'belum terjadi'}</span>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              ${!realized ? `<button data-realize-plan="${p.id}" class="btn-ghost rounded-lg p-1.5" title="Tandai sudah terjadi" style="color:var(--accent)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>` : ""}
+              <button data-edit-plan="${p.id}" class="btn-ghost rounded-lg p-1.5" title="Edit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </button>
+              <button data-delete-plan="${p.id}" class="btn-ghost rounded-lg p-1.5" title="Hapus" style="color:var(--expense)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  /* ---------- Charts ---------- */
+  function chartTextColor(){
+    return getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim() || "#8B93B8";
+  }
+  function chartGridColor(){
+    return getComputedStyle(document.documentElement).getPropertyValue("--border").trim() || "#232D52";
+  }
+  const CAT_COLORS = ["#0E9F8A","#E0553F","#D6942C","#3B6FE0","#9B5DE5","#E0538F","#2FB6C4","#8FA33A"];
+
+  function last6MonthKeys(){
+    // Ends at whichever month is currently selected in the filter dropdown, not at the
+    // real-world "today" — otherwise the trend chart never matched what the rest of the
+    // dashboard (stat cards, pie chart, recent list) was showing for the selected month.
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const keys = [];
+    for (let i=5;i>=0;i--){
+      const d = new Date(y, (m-1)-i, 1);
+      keys.push(monthKey(d));
+    }
+    return keys;
+  }
+
+  function renderLineChart(canvasId, monthKeys){
+    const labels = monthKeys.map(monthLabel);
+    const incomeData = monthKeys.map(mk => txForMonth(mk).reduce((s,t)=>s+(t.income||0),0));
+    const expenseData = monthKeys.map(mk => txForMonth(mk).reduce((s,t)=>s+(t.expense||0),0));
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label:"Pemasukan", data:incomeData, borderColor:"#149E6C", backgroundColor:"#149E6C22", tension:0.35, fill:true, pointRadius:3 },
+          { label:"Pengeluaran", data:expenseData, borderColor:"#E0553F", backgroundColor:"#E0553F22", tension:0.35, fill:true, pointRadius:3 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:"bottom", labels:{ color:chartTextColor(), font:{family:"Inter"} } } },
+        scales:{
+          x:{ ticks:{ color:chartTextColor() }, grid:{ color:chartGridColor() } },
+          y:{ ticks:{ color:chartTextColor(), callback:(v)=> (v/1000)+"k" }, grid:{ color:chartGridColor() } }
+        }
+      }
+    });
+  }
+
+  function renderPieChart(canvasId, monthK, emptyElId){
+    const monthTx = txForMonth(monthK).filter(t => t.expense > 0);
+    const byCat = {};
+    monthTx.forEach(t => { byCat[t.category] = (byCat[t.category]||0) + t.expense; });
+    const labels = Object.keys(byCat);
+    const data = Object.values(byCat);
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+    if (emptyElId) document.getElementById(emptyElId).classList.toggle("hidden", labels.length > 0);
+    if (labels.length === 0) { ctx.getContext("2d").clearRect(0,0,ctx.width,ctx.height); return null; }
+    return new Chart(ctx, {
+      type: "doughnut",
+      data: { labels, datasets:[{ data, backgroundColor:CAT_COLORS, borderWidth:0 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:"62%",
+        plugins:{ legend:{ position:"bottom", labels:{ color:chartTextColor(), boxWidth:10, font:{size:11, family:"Inter"} } } }
+      }
+    });
+  }
+
+  function renderPieChartAllTime(canvasId){
+    const byCat = {};
+    transactions.filter(t=>t.expense>0).forEach(t => { byCat[t.category] = (byCat[t.category]||0) + t.expense; });
+    const labels = Object.keys(byCat);
+    const data = Object.values(byCat);
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+    if (labels.length === 0) return null;
+    return new Chart(ctx, {
+      type:"doughnut",
+      data:{ labels, datasets:[{ data, backgroundColor:CAT_COLORS, borderWidth:0 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:"62%",
+        plugins:{ legend:{ position:"bottom", labels:{ color:chartTextColor(), boxWidth:10, font:{size:11, family:"Inter"} } } }
+      }
+    });
+  }
+
+  function renderCharts(){
+    lineChart = renderLineChart("lineChart", last6MonthKeys());
+    pieChart = renderPieChart("pieChart", selectedMonth, "pieEmpty");
+  }
+  function renderReportCharts(){
+    lineChart2 = renderLineChart("lineChart2", last6MonthKeys());
+    pieChart2 = renderPieChartAllTime("pieChart2");
+  }
+
+  /* ---------- Master render ---------- */
+  function renderAll(){
+    renderStats();
+    renderRecent();
+    renderTransactionTable();
+    renderBudgets();
+    renderCharts();
+    if (currentView === "laporan") renderReportCharts();
+    if (currentView === "rencana") renderRencana();
+  }
+
+  /* ---------- Init ---------- */
+  function init(){
+    const savedTheme = localStorage.getItem(THEME_KEY) || "light";
+    applyTheme(savedTheme);
+    populateMonthFilter();
+    document.getElementById("txDate").value = new Date().toISOString().slice(0,10);
+    renderAll();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
